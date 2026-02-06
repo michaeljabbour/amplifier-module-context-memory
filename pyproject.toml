@@ -5,12 +5,12 @@ description = "Amplifier context module that injects relevant memories at sessio
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "amplifier-core>=0.1.0",
     "amplifier-module-tool-memory>=0.1.0",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
+    "amplifier-core @ git+https://github.com/microsoft/amplifier-core@main",
     "pytest>=7.0",
     "pytest-asyncio>=0.21",
 ]
@@ -19,7 +19,6 @@ dev = [
 context-memory = "amplifier_module_context_memory"
 
 [tool.uv.sources]
-amplifier-core = { git = "https://github.com/microsoft/amplifier-core", branch = "main" }
 amplifier-module-tool-memory = { git = "https://github.com/michaeljabbour/amplifier-module-tool-memory", branch = "main" }
 
 [build-system]
