@@ -13,12 +13,26 @@ Amplifier context module that injects relevant memories at session start using p
 ## Installation
 
 ```yaml
-# Via source in bundle.yaml
+# Merge into the intended bundle; keep its orchestrator/providers.
 session:
-  memory_context:
+  context:
     module: context-memory
-    source: git+https://github.com/michaeljabbour/amplifier-module-context-memory@v0.1.0
+    source: git+https://github.com/michaeljabbour/amplifier-module-context-memory@30294227d6fe2bd1d5d991e709d7675ed19cb514
+    config:
+      backend: native
+      native_wing: my-authorized-wing
+      allow_daemon_start: true
 ```
+
+Amplifier loads this module from `session.context`; `session.memory_context` is
+not a context-manager slot. This selects the session’s one context manager.
+Replace the example wing with an existing scope the host is authorized to read.
+Set `allow_daemon_start: true` only when the host permits the dependency’s daemon
+lifecycle; a host-provided client is the alternative described below.
+
+The full commit pin includes the fixed mount and native/legacy compatibility.
+The historical `v0.1.0` tag predates those fixes and has not been moved. The pin
+selects this module’s source; resolve and pin its tool-memory dependency separately.
 
 ## Configuration
 
@@ -31,7 +45,7 @@ For the native dependency, configure an explicit wing (and optional room):
 
 ```yaml
 session:
-  memory_context:
+  context:
     module: context-memory
     config:
       backend: native
@@ -61,13 +75,15 @@ message history intact and set `MemoryContextManager.memory_status` to
 
 With a compatible legacy concrete SQLite dependency, these existing options
 remain supported (or pass a prebuilt `store` implementing
-`get_context_for_session` programmatically):
+`get_context_for_session` programmatically). Replace the context `config` mapping
+with this legacy configuration:
 
 ```yaml
 session:
-  memory_context:
+  context:
     module: context-memory
     config:
+      backend: legacy
       index_limit: 50  # Maximum observations in index
       lookback_days: 90  # How far back to look
       token_budget: 2000  # Token budget for memory context
