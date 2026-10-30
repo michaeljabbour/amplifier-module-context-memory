@@ -16,7 +16,7 @@ dev = [
 ]
 
 [project.entry-points."amplifier.modules"]
-context-memory = "amplifier_module_context_memory"
+context-memory = "amplifier_module_context_memory:mount"
 
 [tool.uv.sources]
 amplifier-core = { git = "https://github.com/microsoft/amplifier-core", branch = "main" }
