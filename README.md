@@ -22,6 +22,47 @@ session:
 
 ## Configuration
 
+The dependency has two distinct APIs. Older releases provide a concrete SQLite
+`MemoryStore`; native releases expose a write-store protocol and a separate
+`MemoryClient`. The module does not instantiate that protocol or silently mount
+without retrieval when the configured backend is unavailable.
+
+For the native dependency, configure an explicit wing (and optional room):
+
+```yaml
+session:
+  memory_context:
+    module: context-memory
+    config:
+      backend: native
+      native_wing: my-authorized-wing
+      native_room: my-authorized-room  # optional
+      allow_daemon_start: true
+      index_limit: 50
+      token_budget: 2000
+```
+
+`allow_daemon_start: true` explicitly permits calling tool-memory's existing
+`ensure_daemon()` factory, which may start, recover or replace its daemon under
+the dependency's policy. The default never calls this factory. A host can instead
+pass its existing `native_client` object programmatically; that path does not
+discover credentials, create a client or start a daemon. The client owns transport
+and authorization. Wing/room selection requests scope; it is not access control.
+No model provider or embedding service is started by this adapter.
+
+Native context uses the real room index (abstracts and overviews), not fabricated
+legacy observations or session summaries. Legacy `project`, `db_path`,
+`max_memories` and `lookback_days` options are rejected for native use. Native
+`get_relevant_memories()` returns the client's `{results, degraded, ...}` mapping
+so degradation is retained. Legacy observation-ID and file-specific lookups are
+explicitly unsupported on that backend. Native read failures leave the session's
+message history intact and set `MemoryContextManager.memory_status` to
+`unavailable`; successful empty retrieval is a separate `available` result.
+
+With a compatible legacy concrete SQLite dependency, these existing options
+remain supported (or pass a prebuilt `store` implementing
+`get_context_for_session` programmatically):
+
 ```yaml
 session:
   memory_context:
@@ -31,6 +72,14 @@ session:
       lookback_days: 90  # How far back to look
       token_budget: 2000  # Token budget for memory context
 ```
+
+Set the actual boolean `inject: false` to disable injection without opening a
+store or starting a daemon. Strings such as `"false"` are rejected.
+
+Offline tests replace native transport and daemon factory calls with fixtures.
+They exercise the installed dependency's actual client API without starting a
+service. Real SQLite integration tests run only when that legacy API is installed;
+skips are reported rather than substituting an old package for a native result.
 
 ## Progressive Disclosure Layers
 

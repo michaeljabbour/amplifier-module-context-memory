@@ -6,6 +6,7 @@ from amplifier_module_context_memory import MemoryContextManager, mount
 
 pytest.importorskip("amplifier_module_tool_memory")
 from amplifier_module_tool_memory.store import MemoryStore  # noqa: E402
+legacy_store_available = not getattr(MemoryStore, "_is_protocol", False) and callable(getattr(MemoryStore, "get_context_for_session", None))
 
 
 class FakeCoordinator:
@@ -17,6 +18,7 @@ class FakeCoordinator:
 
 
 @pytest.mark.asyncio
+@pytest.mark.skipif(not legacy_store_available, reason="Installed tool-memory exposes native API; tested separately with its real MemoryClient")
 async def test_mount_registers_context_manager_with_no_api_key(tmp_path, monkeypatch):
     for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY"):
         monkeypatch.delenv(k, raising=False)
@@ -41,6 +43,7 @@ async def test_mount_registers_context_manager_with_no_api_key(tmp_path, monkeyp
 
 
 @pytest.mark.asyncio
+@pytest.mark.skipif(not legacy_store_available, reason="Installed tool-memory exposes native API; tested separately with its real MemoryClient")
 async def test_mount_empty_store_and_inject_disabled(tmp_path):
     coord = FakeCoordinator()
     await mount(coord, {"db_path": str(tmp_path / "empty.db")})
@@ -64,6 +67,7 @@ async def test_mount_survives_retrieval_failure():
     ctx = coord.mounted["context"]
     await ctx.add_message({"role": "user", "content": "x"})
     assert await ctx.get_messages_for_request() == [{"role": "user", "content": "x"}]
+    assert ctx.memory_status == {"state": "unavailable", "reason": "retrieval_failed"}
 
 
 def test_entry_point_targets_mount():

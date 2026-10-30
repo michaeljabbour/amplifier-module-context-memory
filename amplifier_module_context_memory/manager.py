@@ -5,8 +5,9 @@ get_messages / set_messages / clear).
 Messages are kept in memory (this module does no persistence of its own; the
 memory store holds the durable observations).  On the first request of a
 session the provider's memory index is retrieved once and injected as a
-system-reminder message after any leading system messages.  Retrieval is local
-(SQLite/FTS5) and needs no API key.
+system-reminder message after any leading system messages. Legacy retrieval is
+local SQLite/FTS5. The explicit native client owns its transport and service
+authorization; this manager does not create clients or start services.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ import logging
 from typing import Any, Optional
 
 from .provider import MemoryContextProvider
+from .native import NativeMemoryContextProvider
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +28,7 @@ class MemoryContextManager:
 
     def __init__(
         self,
-        provider: Optional[MemoryContextProvider],
+        provider: Optional[MemoryContextProvider | NativeMemoryContextProvider],
         project: Optional[str] = None,
         inject: bool = True,
     ):
@@ -36,6 +38,7 @@ class MemoryContextManager:
         self._messages: list[dict[str, Any]] = []
         self._memory_message: Optional[dict[str, Any]] = None
         self._memory_loaded = False
+        self.memory_status = {"state": "pending" if provider and inject else "disabled"}
 
     async def add_message(self, message: dict[str, Any]) -> None:
         self._messages.append(message)
@@ -50,6 +53,7 @@ class MemoryContextManager:
         self._messages = []
         self._memory_message = None
         self._memory_loaded = False
+        self.memory_status = {"state": "pending" if self.provider and self.inject else "disabled"}
 
     async def _load_memory(self) -> Optional[dict[str, Any]]:
         if self._memory_loaded:
@@ -61,8 +65,10 @@ class MemoryContextManager:
             result = await self.provider.get_context(project=self.project)
         except Exception:
             # Memory is advisory: never break the session, but do not hide it.
-            logger.exception("context-memory: retrieval failed; continuing without memories")
+            self.memory_status = {"state": "unavailable", "reason": "retrieval_failed"}
+            logger.warning("context-memory: retrieval failed; continuing without memories")
             return None
+        self.memory_status = {"state": "available", "metadata": (result or {}).get("metadata", {})}
         content = (result or {}).get("content", "")
         if content:
             self._memory_message = {
